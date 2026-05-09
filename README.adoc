@@ -1,0 +1,32 @@
+= Experimental Package flake for bitcoinj
+
+This is a work-in-progress, experimental build of https://github.com/bitcoinj/bitcoinj[bitcoinj] as a (flake-based) https://nixos.org[Nix] 
+package. It currently only builds/outputs `bitcoinj-core`.
+
+== To install bitcoinj-core from GitHub
+
+----
+nix profile install github:msgilligan/bitcoinj-flake#bitcoinj-core
+----
+
+
+== Build bitcoinj-core
+
+----
+nix build .#bitcoinj-core
+----
+
+== Install bitcoinj-core from local
+
+----
+nix profile install .#bitcoinj-core
+----
+
+
+== To build/update deps.json
+
+To update the dependencies that are cached in `deps.json`:
+
+----
+$(nix build .#bitcoinj-core.mitmCache.updateScript --print-out-paths)
+----
