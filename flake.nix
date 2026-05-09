@@ -15,6 +15,7 @@ outputs = {self, nixpkgs, ...}:
       pkgs = import nixpkgs {
           inherit system;
       };
+      protobuf = pkgs.protobuf;
       jdk = pkgs.openjdk17_headless;
       gradle = pkgs.gradle_8.override {
         java = jdk;         # Run Gradle with this JDK
@@ -33,7 +34,7 @@ outputs = {self, nixpkgs, ...}:
           self = pkgs.stdenv.mkDerivation (_finalAttrs: {
             inherit version src pname;
 
-            nativeBuildInputs = [gradle];
+            nativeBuildInputs = [gradle protobuf];
 
             mitmCache = gradle.fetchDeps {
               pkg = self;
@@ -46,7 +47,17 @@ outputs = {self, nixpkgs, ...}:
             gradleFlags = [ "--no-build-cache --no-daemon --no-parallel --info --stacktrace" ];
             doCheck = false;
 
+            postPatch = ''
+              substituteInPlace core/build.gradle \
+                --replace-fail "artifact = 'com.google.protobuf:protoc:4.29.3'" \
+                               "path = System.getenv('PROTOC') ?: 'protoc'"
+             substituteInPlace settings.gradle \
+                --replace-fail "include 'wallettemplate'" "" \
+                --replace-fail "project(':wallettemplate').name = 'bitcoinj-wallettemplate'" ""
+            '';
+
             preBuild = ''
+              export PROTOC=${protobuf}/bin/protoc
               gradleFlagsArray+=("-Dmaven.repo.local=$NIX_BUILD_TOP/$sourceRoot/repo")
               echo "gradleFlagsArray: ''${gradleFlagsArray[@]}"
             '';
