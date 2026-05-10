@@ -70,6 +70,49 @@ outputs = {self, nixpkgs, ...}:
           });
         in
           self;
+      bitcoinj-core-deps =
+        let
+          pname = "bitcoinj-core-deps";
+          self = pkgs.stdenv.mkDerivation (_finalAttrs: {
+            inherit version src pname;
+
+            nativeBuildInputs = [gradle protobuf];
+
+            mitmCache = gradle.fetchDeps {
+              pkg = self;
+              # update or regenerate this by running
+              #  $(nix build .#bitcoinj-core.mitmCache.updateScript --print-out-paths)
+              data = ./deps.json;
+            };
+
+            gradleBuildTask = ":bitcoinj-wallettool:installDist";
+            gradleFlags = [ "--no-build-cache --no-daemon --no-parallel --info --stacktrace" ];
+            doCheck = false;
+
+            postPatch = ''
+              substituteInPlace core/build.gradle \
+                --replace-fail "artifact = 'com.google.protobuf:protoc:4.29.3'" \
+                               "path = System.getenv('PROTOC') ?: 'protoc'"
+             substituteInPlace settings.gradle \
+                --replace-fail "include 'wallettemplate'" "" \
+                --replace-fail "project(':wallettemplate').name = 'bitcoinj-wallettemplate'" ""
+            '';
+
+            preBuild = ''
+              export PROTOC=${protobuf}/bin/protoc
+              gradleFlagsArray+=("-Dmaven.repo.local=$NIX_BUILD_TOP/$sourceRoot/repo")
+              echo "gradleFlagsArray: ''${gradleFlagsArray[@]}"
+            '';
+
+            installPhase = ''
+              mkdir -p $out/share/java
+              cp wallettool/build/install/wallet-tool/lib/* $out/share/java
+              rm $out/share/java/bitcoinj-*
+              rm $out/share/java/bcprov-jdk15to18-*
+            '';
+          });
+        in
+          self;
     });
   };
 }
